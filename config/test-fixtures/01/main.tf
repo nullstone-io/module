@@ -1,5 +1,3 @@
-provider "aws" {}
-
 data "ns_connection" "test" {
   type = "fargate/service"
 }
@@ -13,15 +11,21 @@ variable "var1" {
 variable "var2" {
   type        = list(string)
   description = "Description for var2"
-  default     = ["list","of","values"]
+  default     = ["list", "of", "values"]
 }
 
 output "some_value" {
   value       = module.network.vpc_id
-  description = "Some value"
+  description = "string ||| Some value"
 }
 
 output "sensitive_value" {
-  value     = module.network.vpc_id
-  sensitive = true
+  value       = module.network.vpc_id
+  description = "string ||| "
+  sensitive   = true
+}
+
+output "list_value" {
+  value       = module.network.vpc_id
+  description = "list(string) ||| "
 }

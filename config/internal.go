@@ -76,9 +76,16 @@ func (m *InternalTfConfig) ToManifest() module.Manifest {
 	}
 
 	for name, output := range m.Outputs {
+		outputType := "unknown"
+		description := output.Description
+		if strings.Contains(description, "|||") {
+			tokens := strings.SplitN(description, "|||", 2)
+			outputType = strings.TrimSpace(tokens[0])
+			description = strings.TrimSpace(tokens[1])
+		}
 		manifest.Outputs[name] = module.Output{
-			Type:        "unknown",
-			Description: output.Description,
+			Type:        outputType,
+			Description: description,
 			Sensitive:   output.Sensitive,
 		}
 	}

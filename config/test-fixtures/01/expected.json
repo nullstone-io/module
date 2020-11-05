@@ -1,5 +1,7 @@
 {
-  "providers": ["aws"],
+  "providers": [
+    "aws"
+  ],
   "connections": {
     "test": {
       "type": "fargate/service"
@@ -14,19 +16,28 @@
     "var2": {
       "type": "list(string)",
       "description": "Description for var2",
-      "default": ["list","of","values"]
+      "default": [
+        "list",
+        "of",
+        "values"
+      ]
     }
   },
   "outputs": {
     "some_value": {
-      "type": "unknown",
+      "type": "string",
       "description": "Some value",
       "sensitive": false
     },
     "sensitive_value": {
-      "type": "unknown",
+      "type": "string",
       "description": "",
       "sensitive": true
+    },
+    "list_value": {
+      "type": "list(string)",
+      "description": "",
+      "sensitive": false
     }
   }
 }
