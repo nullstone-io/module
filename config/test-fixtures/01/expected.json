@@ -1,0 +1,32 @@
+{
+  "providers": ["aws"],
+  "connections": {
+    "test": {
+      "type": "fargate/service"
+    }
+  },
+  "variables": {
+    "var1": {
+      "type": "string",
+      "description": "Description for var1",
+      "default": "some-value"
+    },
+    "var2": {
+      "type": "list(string)",
+      "description": "Description for var2",
+      "default": ["list","of","values"]
+    }
+  },
+  "outputs": {
+    "some_value": {
+      "type": "unknown",
+      "description": "Some value",
+      "sensitive": false
+    },
+    "sensitive_value": {
+      "type": "unknown",
+      "description": "",
+      "sensitive": true
+    }
+  }
+}
