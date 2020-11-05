@@ -25,6 +25,11 @@ func (m *InternalTfConfig) MergeIn(other InternalTfConfig) {
 		m.Providers[name] = provider
 	}
 
+	if m.DataSources == nil {
+		m.DataSources = InternalDataSources{}
+	}
+	m.DataSources.MergeIn(other.DataSources)
+
 	if m.Variables == nil {
 		m.Variables = map[string]*InternalVariable{}
 	}
@@ -107,6 +112,20 @@ type InternalProvider struct {
 
 // { "ns_connection": { "name": { ...attrs } } }
 type InternalDataSources map[string]map[string]map[string]interface{}
+
+func (d InternalDataSources) MergeIn(other InternalDataSources) {
+	for dsType, dataSources := range other {
+		var curMap map[string]map[string]interface{}
+		var ok bool
+		if curMap, ok = d[dsType]; !ok {
+			curMap = map[string]map[string]interface{}{}
+			d[dsType] = curMap
+		}
+		for name, attrs := range dataSources {
+			curMap[name] = attrs
+		}
+	}
+}
 
 func (d InternalDataSources) OfType(dataSourceType string) []InternalDataSource {
 	all := make([]InternalDataSource, 0)
