@@ -1,4 +1,4 @@
-package module
+package config
 
 type Manifest struct {
 	Providers   []string              `json:"providers"`

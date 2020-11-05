@@ -3,8 +3,6 @@ package config
 import (
 	"fmt"
 	"strings"
-
-	"github.com/nullstone-io/terraform-parser/module"
 )
 
 // This file contains structs to create an internal representation of terraform config
@@ -45,12 +43,12 @@ func (m *InternalTfConfig) MergeIn(other InternalTfConfig) {
 	}
 }
 
-func (m *InternalTfConfig) ToManifest() module.Manifest {
-	manifest := module.Manifest{
+func (m *InternalTfConfig) ToManifest() Manifest {
+	manifest := Manifest{
 		Providers:   []string{},
-		Connections: map[string]module.Connection{},
-		Variables:   map[string]module.Variable{},
-		Outputs:     map[string]module.Output{},
+		Connections: map[string]Connection{},
+		Variables:   map[string]Variable{},
+		Outputs:     map[string]Output{},
 	}
 
 	visitedProviders := map[string]bool{}
@@ -68,7 +66,7 @@ func (m *InternalTfConfig) ToManifest() module.Manifest {
 		if strings.HasPrefix(varType, "${") && strings.HasSuffix(varType, "}") {
 			varType = strings.TrimSuffix(strings.TrimPrefix(varType, "${"), "}")
 		}
-		manifest.Variables[name] = module.Variable{
+		manifest.Variables[name] = Variable{
 			Type:        varType,
 			Description: variable.Description,
 			Default:     variable.Default,
@@ -83,7 +81,7 @@ func (m *InternalTfConfig) ToManifest() module.Manifest {
 			outputType = strings.TrimSpace(tokens[0])
 			description = strings.TrimSpace(tokens[1])
 		}
-		manifest.Outputs[name] = module.Output{
+		manifest.Outputs[name] = Output{
 			Type:        outputType,
 			Description: description,
 			Sensitive:   output.Sensitive,
@@ -96,7 +94,7 @@ func (m *InternalTfConfig) ToManifest() module.Manifest {
 		if val, ok := ds.Attrs["type"].(string); ok {
 			connType = val
 		}
-		manifest.Connections[ds.Name] = module.Connection{
+		manifest.Connections[ds.Name] = Connection{
 			Type: connType,
 		}
 	}

@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nullstone-io/terraform-parser/module"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +21,7 @@ func TestInternal(t *testing.T) {
 			require.NoError(t, err)
 			wantRaw, err := ioutil.ReadFile(filepath.Join("test-fixtures", test, "expected.json"))
 			require.NoError(t, err)
-			var want module.Manifest
+			var want Manifest
 			require.NoError(t, json.Unmarshal(wantRaw, &want))
 
 			got := cfg.ToManifest()

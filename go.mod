@@ -1,4 +1,4 @@
-module github.com/nullstone-io/terraform-parser
+module github.com/nullstone-io/module
 
 go 1.15
 

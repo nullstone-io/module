@@ -1,3 +1,5 @@
+provider "aws" {}
+
 data "ns_connection" "test" {
   type = "fargate/service"
 }
