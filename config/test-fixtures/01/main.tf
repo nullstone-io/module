@@ -1,6 +1,7 @@
 provider "aws" {}
 
 data "ns_connection" "test" {
+  name = "service"
   type = "fargate/service"
 }
 

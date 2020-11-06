@@ -3,7 +3,7 @@
     "aws"
   ],
   "connections": {
-    "test": {
+    "service": {
       "type": "fargate/service",
       "optional": false
     }

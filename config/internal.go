@@ -90,15 +90,19 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 
 	// Collect nullstone connections
 	for _, ds := range m.DataSources.OfType("ns_connection") {
+		name := ""
 		connType := "unknown"
 		optional := false
+		if val, ok := ds.Attrs["name"].(string); ok {
+			name = val
+		}
 		if val, ok := ds.Attrs["type"].(string); ok {
 			connType = val
 		}
 		if val, ok := ds.Attrs["optional"].(bool); ok {
 			optional = val
 		}
-		manifest.Connections[ds.Name] = Connection{
+		manifest.Connections[name] = Connection{
 			Type:     connType,
 			Optional: optional,
 		}
