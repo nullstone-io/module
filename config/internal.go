@@ -90,6 +90,13 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 
 	// Collect nullstone connections
 	for _, ds := range m.DataSources.OfType("ns_connection") {
+		if val, ok := ds.Attrs["via"].(string); ok && val != "" {
+			// If ns_connection is defined with "via",
+			//   the connection is transitive and is satisfied "through" another workspace
+			// We don't include this in our list of connections
+			continue
+		}
+
 		name := ""
 		connType := "unknown"
 		optional := false
