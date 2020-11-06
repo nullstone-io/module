@@ -8,7 +8,8 @@ type Manifest struct {
 }
 
 type Connection struct {
-	Type string `json:"type"`
+	Type     string `json:"type"`
+	Optional bool   `json:"optional"`
 }
 
 type Variable struct {

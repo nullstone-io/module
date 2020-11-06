@@ -16,13 +16,13 @@ func main() {
 	app := &cli.App{
 		Commands: []cli.Command{
 			{
-				Name: "manifest",
+				Name:        "manifest",
 				Description: `This generates a nullstone module manifest from a directory of terraform files.`,
 				Flags: []cli.Flag{
 					cli.StringFlag{
-						Name: "dir",
-						Usage: "Directory to scan. By default, uses current directory.",
-						Value: ".",
+						Name:        "dir",
+						Usage:       "Directory to scan. By default, uses current directory.",
+						Value:       ".",
 						Destination: &dir,
 					},
 				},
