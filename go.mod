@@ -1,5 +1,10 @@
-module github.com/nullstone-io/terraform-parser
+module github.com/nullstone-io/module
 
 go 1.15
 
-require github.com/hashicorp/hcl/v2 v2.7.0
+require (
+	github.com/spf13/afero v1.2.2
+	github.com/stretchr/testify v1.2.2
+	github.com/tmccombs/hcl2json v0.3.1
+	github.com/urfave/cli v1.22.5
+)
