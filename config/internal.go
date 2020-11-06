@@ -178,7 +178,6 @@ type InternalVariable struct {
 }
 
 type InternalOutput struct {
-	Value       string `json:"value"`
 	Description string `json:"description"`
 	Sensitive   bool   `json:"sensitive"`
 }
