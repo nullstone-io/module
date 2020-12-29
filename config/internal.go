@@ -11,7 +11,7 @@ import (
 type InternalTfConfig struct {
 	Providers   map[string][]*InternalProvider `json:"provider"`
 	DataSources InternalDataSources            `json:"data"`
-	Variables   map[string]*InternalVariable   `json:"variable"`
+	Variables   map[string][]*InternalVariable `json:"variable"`
 	Outputs     map[string]*InternalOutput     `json:"output"`
 }
 
@@ -29,7 +29,7 @@ func (m *InternalTfConfig) MergeIn(other InternalTfConfig) {
 	m.DataSources.MergeIn(other.DataSources)
 
 	if m.Variables == nil {
-		m.Variables = map[string]*InternalVariable{}
+		m.Variables = map[string][]*InternalVariable{}
 	}
 	for name, variable := range other.Variables {
 		m.Variables[name] = variable
@@ -65,15 +65,17 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 		manifest.Providers = append(manifest.Providers, fullName)
 	}
 
-	for name, variable := range m.Variables {
-		varType := variable.Type
-		if strings.HasPrefix(varType, "${") && strings.HasSuffix(varType, "}") {
-			varType = strings.TrimSuffix(strings.TrimPrefix(varType, "${"), "}")
-		}
-		manifest.Variables[name] = Variable{
-			Type:        varType,
-			Description: variable.Description,
-			Default:     variable.Default,
+	for name, variables := range m.Variables {
+		for _, variable := range variables {
+			varType := variable.Type
+			if strings.HasPrefix(varType, "${") && strings.HasSuffix(varType, "}") {
+				varType = strings.TrimSuffix(strings.TrimPrefix(varType, "${"), "}")
+			}
+			manifest.Variables[name] = Variable{
+				Type:        varType,
+				Description: variable.Description,
+				Default:     variable.Default,
+			}
 		}
 	}
 
