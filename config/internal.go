@@ -131,15 +131,15 @@ type InternalProvider struct {
 	Alias string `json:"alias,omitempty"`
 }
 
-// { "ns_connection": { "name": { ...attrs } } }
-type InternalDataSources map[string]map[string]map[string]interface{}
+// { "ns_connection": { "name": [{ ...attrs }] } }
+type InternalDataSources map[string]map[string][]map[string]interface{}
 
 func (d InternalDataSources) MergeIn(other InternalDataSources) {
 	for dsType, dataSources := range other {
-		var curMap map[string]map[string]interface{}
+		var curMap map[string][]map[string]interface{}
 		var ok bool
 		if curMap, ok = d[dsType]; !ok {
-			curMap = map[string]map[string]interface{}{}
+			curMap = map[string][]map[string]interface{}{}
 			d[dsType] = curMap
 		}
 		for name, attrs := range dataSources {
@@ -155,11 +155,13 @@ func (d InternalDataSources) OfType(dataSourceType string) []InternalDataSource 
 			continue
 		}
 		for name, attrs := range dataSources {
-			all = append(all, InternalDataSource{
-				Type:  dsType,
-				Name:  name,
-				Attrs: attrs,
-			})
+			for _, attr := range attrs {
+				all = append(all, InternalDataSource{
+					Type:  dsType,
+					Name:  name,
+					Attrs: attr,
+				})
+			}
 		}
 	}
 	return all
