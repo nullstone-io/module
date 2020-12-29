@@ -9,15 +9,15 @@ import (
 //   before converting to nullstone manifest schema
 
 type InternalTfConfig struct {
-	Providers   map[string]*InternalProvider `json:"provider"`
-	DataSources InternalDataSources          `json:"data"`
-	Variables   map[string]*InternalVariable `json:"variable"`
-	Outputs     map[string]*InternalOutput   `json:"output"`
+	Providers   map[string][]*InternalProvider `json:"provider"`
+	DataSources InternalDataSources            `json:"data"`
+	Variables   map[string]*InternalVariable   `json:"variable"`
+	Outputs     map[string]*InternalOutput     `json:"output"`
 }
 
 func (m *InternalTfConfig) MergeIn(other InternalTfConfig) {
 	if m.Providers == nil {
-		m.Providers = map[string]*InternalProvider{}
+		m.Providers = map[string][]*InternalProvider{}
 	}
 	for name, provider := range other.Providers {
 		m.Providers[name] = provider
@@ -53,7 +53,11 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 
 	visitedProviders := map[string]bool{}
 	for name, provider := range m.Providers {
-		fullName := strings.TrimSuffix(fmt.Sprintf("%s.%s", name, provider.Alias), ".")
+		alias := ""
+		if len(provider) > 0 {
+			alias = provider[0].Alias
+		}
+		fullName := strings.TrimSuffix(fmt.Sprintf("%s.%s", name, alias), ".")
 		if found, _ := visitedProviders[fullName]; found {
 			continue
 		}
