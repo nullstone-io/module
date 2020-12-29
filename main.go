@@ -27,11 +27,7 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					files, err := config.ReadDir(dir)
-					if err != nil {
-						return err
-					}
-					cfg, err := config.Parse(files)
+					cfg, err := config.ParseDir(dir)
 					if err != nil {
 						return err
 					}
