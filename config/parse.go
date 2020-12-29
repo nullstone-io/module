@@ -9,7 +9,15 @@ import (
 	"github.com/tmccombs/hcl2json/convert"
 )
 
-func Parse(files []string) (*InternalTfConfig, error) {
+func ParseDir(dir string) (*InternalTfConfig, error) {
+	files, err := ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFiles(files)
+}
+
+func ParseFiles(files []string) (*InternalTfConfig, error) {
 	root := &InternalTfConfig{}
 	for _, file := range files {
 		raw, err := ioutil.ReadFile(file)

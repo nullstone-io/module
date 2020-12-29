@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestInternal(t *testing.T) {
+func TestParseDir(t *testing.T) {
 	tests := []string{
 		"01",
 		"02",
@@ -18,9 +18,7 @@ func TestInternal(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test, func(t *testing.T) {
-			files, err := ReadDir(filepath.Join("test-fixtures", test))
-			require.NoError(t, err)
-			cfg, err := Parse(files)
+			cfg, err := ParseDir(filepath.Join("test-fixtures", test))
 			require.NoError(t, err)
 			wantRaw, err := ioutil.ReadFile(filepath.Join("test-fixtures", test, "expected.json"))
 			require.NoError(t, err)
