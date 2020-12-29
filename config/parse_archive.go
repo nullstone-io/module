@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -19,12 +18,17 @@ func ParseArchive(archiveData []byte, ext string) (*InternalTfConfig, error) {
 	}
 
 	root := &InternalTfConfig{}
-	err := scanner.Scan(bytes.NewBuffer(archiveData), func(info os.FileInfo, r io.Reader) error {
+	err := scanner.Scan(bytes.NewBuffer(archiveData), func(fullname string, r io.Reader) error {
+		dir, filename := filepath.Split(fullname)
+		if dir != "" {
+			// We skip nested files when parsing manifest
+			return nil
+		}
 		raw, err := ioutil.ReadAll(r)
 		if err != nil {
-			return fmt.Errorf("error reading archive file %q: %w", info.Name(), err)
+			return fmt.Errorf("error reading archive file %q: %w", filename, err)
 		}
-		return ParseFileContents(root, raw, filepath.Base(info.Name()))
+		return ParseFileContents(root, raw, filename)
 	})
 	return root, err
 }

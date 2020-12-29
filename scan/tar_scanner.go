@@ -24,7 +24,7 @@ func (s TarScanner) Scan(r io.Reader, fn ScannerItemFn) error {
 			// don't unpack extended headers as files
 			continue
 		}
-		if err := fn(hdr.FileInfo(), tr); err != nil {
+		if err := fn(hdr.Name, tr); err != nil {
 			return fmt.Errorf("error scanning %q: %w", hdr.Name, err)
 		}
 	}
