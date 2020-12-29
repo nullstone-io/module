@@ -11,7 +11,10 @@ import (
 )
 
 func TestInternal(t *testing.T) {
-	tests := []string{"01"}
+	tests := []string{
+		"01",
+		"02",
+	}
 
 	for _, test := range tests {
 		t.Run(test, func(t *testing.T) {

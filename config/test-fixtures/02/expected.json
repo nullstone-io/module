@@ -1,0 +1,12 @@
+{
+  "providers": [],
+  "connections": {},
+  "variables": {
+    "var1": {
+      "type": "string",
+      "description": "Description for var1",
+      "default": "some-value"
+    }
+  },
+  "outputs": {}
+}
