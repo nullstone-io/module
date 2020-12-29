@@ -17,6 +17,11 @@ func TestParseArchive(t *testing.T) {
 		expectedFile string
 	}{
 		{
+			name:         "01",
+			archiveFile:  "01/module.tgz",
+			expectedFile: "01/expected.json",
+		},
+		{
 			name:         "02",
 			archiveFile:  "02/module.tgz",
 			expectedFile: "02/expected.json",
