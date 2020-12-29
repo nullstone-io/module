@@ -1,0 +1,83 @@
+{
+  "providers": [
+    "aws"
+  ],
+  "connections": {},
+  "variables": {
+    "cidr": {
+      "type": "string",
+      "description": "Internal network range for entire VPC.",
+      "default": "10.0.0.0/16"
+    },
+    "intra_subnets": {
+      "type": "list(string)",
+      "description": "Network ranges for intra subnets created in the VPC. Devices in intra subnets cannot access the internet directly.",
+      "default": []
+    },
+    "private_subnets": {
+      "type": "list(string)",
+      "description": "Network ranges for private subnets created in the VPC. Devices in private subnets communicate to internet through a NAT Gateway.",
+      "default": [
+        "10.0.1.0/24",
+        "10.0.2.0/24",
+        "10.0.3.0/24"
+      ]
+    },
+    "public_subnets": {
+      "type": "list(string)",
+      "description": "Network ranges for public subnets created in the VPC. Devices in public subnets can be public facing and communicate to internet through an Internet Gateway.",
+      "default": [
+        "10.0.101.0/24",
+        "10.0.102.0/24",
+        "10.0.103.0/24"
+      ]
+    }
+  },
+  "outputs": {
+    "internal_zone_id": {
+      "type": "string",
+      "description": "",
+      "sensitive": false
+    },
+    "intra_cidrs": {
+      "type": "list(string)",
+      "description": "",
+      "sensitive": false
+    },
+    "intra_subnet_ids": {
+      "type": "list(string)",
+      "description": "",
+      "sensitive": false
+    },
+    "private_cidrs": {
+      "type": "list(string)",
+      "description": "",
+      "sensitive": false
+    },
+    "private_subnet_ids": {
+      "type": "list(string)",
+      "description": "",
+      "sensitive": false
+    },
+    "public_cidrs": {
+      "type": "list(string)",
+      "description": "",
+      "sensitive": false
+    },
+    "public_subnet_ids": {
+      "type": "list(string)",
+      "description": "",
+      "sensitive": false
+    },
+    "vpc_cidr": {
+      "type": "string",
+      "description": "",
+      "sensitive": false
+    },
+    "vpc_id": {
+      "type": "string",
+      "description": "",
+      "sensitive": false
+    }
+  }
+}
