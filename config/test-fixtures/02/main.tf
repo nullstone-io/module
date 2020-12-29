@@ -1,3 +1,7 @@
+provider "aws" {
+  alias = "test"
+}
+
 variable "var1" {
   type        = string
   description = "Description for var1"

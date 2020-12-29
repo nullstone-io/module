@@ -9,15 +9,15 @@ import (
 //   before converting to nullstone manifest schema
 
 type InternalTfConfig struct {
-	Providers   map[string]*InternalProvider `json:"provider"`
-	DataSources InternalDataSources          `json:"data"`
-	Variables   map[string]*InternalVariable `json:"variable"`
-	Outputs     map[string]*InternalOutput   `json:"output"`
+	Providers   map[string][]*InternalProvider `json:"provider"`
+	DataSources InternalDataSources            `json:"data"`
+	Variables   map[string][]*InternalVariable `json:"variable"`
+	Outputs     map[string][]*InternalOutput   `json:"output"`
 }
 
 func (m *InternalTfConfig) MergeIn(other InternalTfConfig) {
 	if m.Providers == nil {
-		m.Providers = map[string]*InternalProvider{}
+		m.Providers = map[string][]*InternalProvider{}
 	}
 	for name, provider := range other.Providers {
 		m.Providers[name] = provider
@@ -29,14 +29,14 @@ func (m *InternalTfConfig) MergeIn(other InternalTfConfig) {
 	m.DataSources.MergeIn(other.DataSources)
 
 	if m.Variables == nil {
-		m.Variables = map[string]*InternalVariable{}
+		m.Variables = map[string][]*InternalVariable{}
 	}
 	for name, variable := range other.Variables {
 		m.Variables[name] = variable
 	}
 
 	if m.Outputs == nil {
-		m.Outputs = map[string]*InternalOutput{}
+		m.Outputs = map[string][]*InternalOutput{}
 	}
 	for name, output := range other.Outputs {
 		m.Outputs[name] = output
@@ -53,7 +53,11 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 
 	visitedProviders := map[string]bool{}
 	for name, provider := range m.Providers {
-		fullName := strings.TrimSuffix(fmt.Sprintf("%s.%s", name, provider.Alias), ".")
+		alias := ""
+		if len(provider) > 0 {
+			alias = provider[0].Alias
+		}
+		fullName := strings.TrimSuffix(fmt.Sprintf("%s.%s", name, alias), ".")
 		if found, _ := visitedProviders[fullName]; found {
 			continue
 		}
@@ -61,30 +65,34 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 		manifest.Providers = append(manifest.Providers, fullName)
 	}
 
-	for name, variable := range m.Variables {
-		varType := variable.Type
-		if strings.HasPrefix(varType, "${") && strings.HasSuffix(varType, "}") {
-			varType = strings.TrimSuffix(strings.TrimPrefix(varType, "${"), "}")
-		}
-		manifest.Variables[name] = Variable{
-			Type:        varType,
-			Description: variable.Description,
-			Default:     variable.Default,
+	for name, variables := range m.Variables {
+		for _, variable := range variables {
+			varType := variable.Type
+			if strings.HasPrefix(varType, "${") && strings.HasSuffix(varType, "}") {
+				varType = strings.TrimSuffix(strings.TrimPrefix(varType, "${"), "}")
+			}
+			manifest.Variables[name] = Variable{
+				Type:        varType,
+				Description: variable.Description,
+				Default:     variable.Default,
+			}
 		}
 	}
 
-	for name, output := range m.Outputs {
-		outputType := "unknown"
-		description := output.Description
-		if strings.Contains(description, "|||") {
-			tokens := strings.SplitN(description, "|||", 2)
-			outputType = strings.TrimSpace(tokens[0])
-			description = strings.TrimSpace(tokens[1])
-		}
-		manifest.Outputs[name] = Output{
-			Type:        outputType,
-			Description: description,
-			Sensitive:   output.Sensitive,
+	for name, outputs := range m.Outputs {
+		for _, output := range outputs {
+			outputType := "unknown"
+			description := output.Description
+			if strings.Contains(description, "|||") {
+				tokens := strings.SplitN(description, "|||", 2)
+				outputType = strings.TrimSpace(tokens[0])
+				description = strings.TrimSpace(tokens[1])
+			}
+			manifest.Outputs[name] = Output{
+				Type:        outputType,
+				Description: description,
+				Sensitive:   output.Sensitive,
+			}
 		}
 	}
 
@@ -131,15 +139,15 @@ type InternalProvider struct {
 	Alias string `json:"alias,omitempty"`
 }
 
-// { "ns_connection": { "name": { ...attrs } } }
-type InternalDataSources map[string]map[string]map[string]interface{}
+// { "ns_connection": { "name": [{ ...attrs }] } }
+type InternalDataSources map[string]map[string][]map[string]interface{}
 
 func (d InternalDataSources) MergeIn(other InternalDataSources) {
 	for dsType, dataSources := range other {
-		var curMap map[string]map[string]interface{}
+		var curMap map[string][]map[string]interface{}
 		var ok bool
 		if curMap, ok = d[dsType]; !ok {
-			curMap = map[string]map[string]interface{}{}
+			curMap = map[string][]map[string]interface{}{}
 			d[dsType] = curMap
 		}
 		for name, attrs := range dataSources {
@@ -155,11 +163,13 @@ func (d InternalDataSources) OfType(dataSourceType string) []InternalDataSource 
 			continue
 		}
 		for name, attrs := range dataSources {
-			all = append(all, InternalDataSource{
-				Type:  dsType,
-				Name:  name,
-				Attrs: attrs,
-			})
+			for _, attr := range attrs {
+				all = append(all, InternalDataSource{
+					Type:  dsType,
+					Name:  name,
+					Attrs: attr,
+				})
+			}
 		}
 	}
 	return all
