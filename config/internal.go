@@ -12,7 +12,7 @@ type InternalTfConfig struct {
 	Providers   map[string][]*InternalProvider `json:"provider"`
 	DataSources InternalDataSources            `json:"data"`
 	Variables   map[string][]*InternalVariable `json:"variable"`
-	Outputs     map[string]*InternalOutput     `json:"output"`
+	Outputs     map[string][]*InternalOutput   `json:"output"`
 }
 
 func (m *InternalTfConfig) MergeIn(other InternalTfConfig) {
@@ -36,7 +36,7 @@ func (m *InternalTfConfig) MergeIn(other InternalTfConfig) {
 	}
 
 	if m.Outputs == nil {
-		m.Outputs = map[string]*InternalOutput{}
+		m.Outputs = map[string][]*InternalOutput{}
 	}
 	for name, output := range other.Outputs {
 		m.Outputs[name] = output
@@ -79,18 +79,20 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 		}
 	}
 
-	for name, output := range m.Outputs {
-		outputType := "unknown"
-		description := output.Description
-		if strings.Contains(description, "|||") {
-			tokens := strings.SplitN(description, "|||", 2)
-			outputType = strings.TrimSpace(tokens[0])
-			description = strings.TrimSpace(tokens[1])
-		}
-		manifest.Outputs[name] = Output{
-			Type:        outputType,
-			Description: description,
-			Sensitive:   output.Sensitive,
+	for name, outputs := range m.Outputs {
+		for _, output := range outputs {
+			outputType := "unknown"
+			description := output.Description
+			if strings.Contains(description, "|||") {
+				tokens := strings.SplitN(description, "|||", 2)
+				outputType = strings.TrimSpace(tokens[0])
+				description = strings.TrimSpace(tokens[1])
+			}
+			manifest.Outputs[name] = Output{
+				Type:        outputType,
+				Description: description,
+				Sensitive:   output.Sensitive,
+			}
 		}
 	}
 
