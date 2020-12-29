@@ -8,6 +8,7 @@ var (
 	ArchiveScanners = map[string]ArchiveScanner{
 		"tar.gz": TargzScanner{},
 		"tgz":    TargzScanner{},
+		"zip":    ZipScanner{},
 	}
 )
 

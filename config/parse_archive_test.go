@@ -17,18 +17,23 @@ func TestParseArchive(t *testing.T) {
 		expectedFile string
 	}{
 		{
-			name:         "01",
+			name:         "tgz-basic",
 			archiveFile:  "01/module.tgz",
 			expectedFile: "01/expected.json",
 		},
 		{
-			name:         "02",
+			name:         "tgz-with-subdirs",
 			archiveFile:  "02/module.tgz",
 			expectedFile: "02/expected.json",
 		},
 		{
-			name:         "03",
+			name:         "tgz-network",
 			archiveFile:  "03/module.tgz",
+			expectedFile: "03/expected.json",
+		},
+		{
+			name:         "zip-network",
+			archiveFile:  "03/module.zip",
 			expectedFile: "03/expected.json",
 		},
 	}
