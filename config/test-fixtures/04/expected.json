@@ -1,0 +1,44 @@
+{
+  "providers": [
+    "aws"
+  ],
+  "connections": {
+    "service": {
+      "type": "fargate/service",
+      "optional": false
+    }
+  },
+  "variables": {
+    "var1": {
+      "type": "string",
+      "description": "Description for var1",
+      "default": "some-value"
+    },
+    "var2": {
+      "type": "list(string)",
+      "description": "Description for var2",
+      "default": [
+        "list",
+        "of",
+        "values"
+      ]
+    }
+  },
+  "outputs": {
+    "some_value": {
+      "type": "string",
+      "description": "Some value",
+      "sensitive": false
+    },
+    "sensitive_value": {
+      "type": "string",
+      "description": "",
+      "sensitive": true
+    },
+    "list_value": {
+      "type": "list(string)",
+      "description": "",
+      "sensitive": false
+    }
+  }
+}
