@@ -11,6 +11,13 @@ import (
 	"github.com/nullstone-io/module/scan"
 )
 
+var (
+	validTfFileExts = map[string]bool{
+		".tf":      true,
+		".tf.json": true,
+	}
+)
+
 func ParseArchive(archiveData []byte, ext string) (*InternalTfConfig, error) {
 	scanner, ok := scan.ArchiveScanners[strings.TrimPrefix(ext, ".")]
 	if !ok {
@@ -22,6 +29,11 @@ func ParseArchive(archiveData []byte, ext string) (*InternalTfConfig, error) {
 		dir, filename := filepath.Split(fullname)
 		if dir != "" {
 			// We skip nested files when parsing manifest
+			return nil
+		}
+		ext := filepath.Ext(filename)
+		if _, ok := validTfFileExts[ext]; !ok {
+			// Not a TF file, we can ignore from parsing
 			return nil
 		}
 		raw, err := ioutil.ReadAll(r)

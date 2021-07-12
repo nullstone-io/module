@@ -36,6 +36,11 @@ func TestParseArchive(t *testing.T) {
 			archiveFile:  "03/module.zip",
 			expectedFile: "03/expected.json",
 		},
+		{
+			name:         "tgz-with-a-nontf-file",
+			archiveFile:  "04/module.tgz",
+			expectedFile: "04/expected.json",
+		},
 	}
 
 	for _, test := range tests {
