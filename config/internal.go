@@ -107,6 +107,7 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 
 		name := ""
 		connType := "unknown"
+		category := ""
 		optional := false
 		if val, ok := ds.Attrs["name"].(string); ok {
 			name = val
@@ -114,11 +115,15 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 		if val, ok := ds.Attrs["type"].(string); ok {
 			connType = val
 		}
+		if val, ok := ds.Attrs["category"].(string); ok {
+			category = val
+		}
 		if val, ok := ds.Attrs["optional"].(bool); ok {
 			optional = val
 		}
 		manifest.Connections[name] = Connection{
 			Type:     connType,
+			Category: category,
 			Optional: optional,
 		}
 	}

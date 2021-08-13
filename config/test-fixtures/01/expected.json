@@ -5,6 +5,7 @@
   "connections": {
     "service": {
       "type": "fargate/service",
+      "category": "app/*",
       "optional": false
     }
   },

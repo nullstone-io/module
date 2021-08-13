@@ -4,6 +4,7 @@ data "aws_availability_zone" "this" {}
 data "ns_connection" "test" {
   name = "service"
   type = "fargate/service"
+  category = "app/*"
 }
 
 variable "var1" {

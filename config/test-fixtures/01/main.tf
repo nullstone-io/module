@@ -2,8 +2,9 @@ provider "aws" {}
 data "aws_availability_zone" "this" {}
 
 data "ns_connection" "test" {
-  name = "service"
-  type = "fargate/service"
+  name     = "service"
+  category = "app/*"
+  type     = "fargate/service"
 }
 
 variable "var1" {
