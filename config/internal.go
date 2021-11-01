@@ -75,6 +75,7 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 				Type:        varType,
 				Description: variable.Description,
 				Default:     variable.Default,
+				Sensitive:	 variable.Sensitive,
 			}
 		}
 	}
@@ -185,6 +186,7 @@ type InternalVariable struct {
 	Type        string      `json:"type"`
 	Description string      `json:"description"`
 	Default     interface{} `json:"default"`
+	Sensitive	bool		`json:"sensitive"`
 }
 
 type InternalOutput struct {
