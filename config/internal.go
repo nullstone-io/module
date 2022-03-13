@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -45,10 +46,11 @@ func (m *InternalTfConfig) MergeIn(other InternalTfConfig) {
 
 func (m *InternalTfConfig) ToManifest() Manifest {
 	manifest := Manifest{
-		Providers:   []string{},
-		Connections: map[string]Connection{},
-		Variables:   map[string]Variable{},
-		Outputs:     map[string]Output{},
+		Providers:    []string{},
+		Connections:  map[string]Connection{},
+		Variables:    map[string]Variable{},
+		Outputs:      map[string]Output{},
+		EnvVariables: map[string]EnvVariable{},
 	}
 
 	visitedProviders := map[string]bool{}
@@ -82,6 +84,17 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 
 	for name, outputs := range m.Outputs {
 		for _, output := range outputs {
+			if name == "env" || name == "secrets" {
+				var envVars []InternalEnvVar
+				err := json.Unmarshal(output.Value, &envVars)
+				if err == nil {
+					for _, envVar := range envVars {
+						manifest.EnvVariables[envVar.Name] = EnvVariable{Sensitive: name == "secrets"}
+					}
+					continue
+				}
+			}
+
 			outputType := "unknown"
 			description := output.Description
 			if strings.Contains(description, "|||") {
@@ -190,6 +203,11 @@ type InternalVariable struct {
 }
 
 type InternalOutput struct {
-	Description string `json:"description"`
-	Sensitive   bool   `json:"sensitive"`
+	Description string          `json:"description"`
+	Sensitive   bool            `json:"sensitive"`
+	Value       json.RawMessage `json:"value"`
+}
+
+type InternalEnvVar struct {
+	Name string `json:"name"`
 }
