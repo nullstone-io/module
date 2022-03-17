@@ -6,10 +6,11 @@ import (
 )
 
 type Manifest struct {
-	Providers   []string              `json:"providers"`
-	Connections map[string]Connection `json:"connections"`
-	Variables   map[string]Variable   `json:"variables"`
-	Outputs     map[string]Output     `json:"outputs"`
+	Providers    []string               `json:"providers"`
+	Connections  map[string]Connection  `json:"connections"`
+	Variables    map[string]Variable    `json:"variables"`
+	Outputs      map[string]Output      `json:"outputs"`
+	EnvVariables map[string]EnvVariable `json:"env_variables"`
 }
 
 func (m *Manifest) Value() (driver.Value, error) {
@@ -45,4 +46,8 @@ type Output struct {
 	Type        string `json:"type"`
 	Description string `json:"description"`
 	Sensitive   bool   `json:"sensitive"`
+}
+
+type EnvVariable struct {
+	Sensitive bool `json:"sensitive"`
 }
