@@ -46,4 +46,3 @@ func TestParseFiles(t *testing.T) {
 		})
 	}
 }
-
