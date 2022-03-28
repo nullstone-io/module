@@ -14,6 +14,7 @@ type InternalTfConfig struct {
 	DataSources InternalDataSources            `json:"data"`
 	Variables   map[string][]*InternalVariable `json:"variable"`
 	Outputs     map[string][]*InternalOutput   `json:"output"`
+	Readme      string
 }
 
 func (m *InternalTfConfig) MergeIn(other InternalTfConfig) {
@@ -77,7 +78,7 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 				Type:        varType,
 				Description: variable.Description,
 				Default:     variable.Default,
-				Sensitive:	 variable.Sensitive,
+				Sensitive:   variable.Sensitive,
 			}
 		}
 	}
@@ -199,7 +200,7 @@ type InternalVariable struct {
 	Type        string      `json:"type"`
 	Description string      `json:"description"`
 	Default     interface{} `json:"default"`
-	Sensitive	bool		`json:"sensitive"`
+	Sensitive   bool        `json:"sensitive"`
 }
 
 type InternalOutput struct {

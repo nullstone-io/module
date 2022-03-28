@@ -31,6 +31,15 @@ func ParseArchive(archiveData []byte, ext string) (*InternalTfConfig, error) {
 			// We skip nested files when parsing manifest
 			return nil
 		}
+		// remove the base path, just check for file name
+		if strings.ToLower(filepath.Base(filename)) == "readme.md" {
+			raw, err := ioutil.ReadAll(r)
+			if err != nil {
+				return fmt.Errorf("error reading the README.md file: %w", err)
+			}
+			root.Readme = string(raw)
+			return nil
+		}
 		ext := filepath.Ext(filename)
 		if _, ok := validTfFileExts[ext]; !ok {
 			// Not a TF file, we can ignore from parsing

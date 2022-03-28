@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 
 	"github.com/tmccombs/hcl2json/convert"
 )
@@ -12,6 +13,15 @@ import (
 func ParseFiles(files []string) (*InternalTfConfig, error) {
 	root := &InternalTfConfig{}
 	for _, file := range files {
+		// remove base path, just check for file name
+		if strings.ToLower(filepath.Base(file)) == "readme.md" {
+			raw, err := ioutil.ReadFile(file)
+			if err != nil {
+				return nil, fmt.Errorf("error reading the README.md file: %w", err)
+			}
+			root.Readme = string(raw)
+			continue
+		}
 		raw, err := ioutil.ReadFile(file)
 		if err != nil {
 			return nil, fmt.Errorf("unable to read %q: %s", file, err)

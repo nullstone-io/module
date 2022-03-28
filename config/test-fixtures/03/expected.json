@@ -79,5 +79,6 @@
       "description": "",
       "sensitive": false
     }
-  }
+  },
+  "env_variables": {}
 }

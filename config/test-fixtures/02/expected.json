@@ -10,5 +10,6 @@
       "default": "some-value"
     }
   },
-  "outputs": {}
+  "outputs": {},
+  "env_variables": {}
 }
