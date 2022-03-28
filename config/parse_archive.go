@@ -31,7 +31,8 @@ func ParseArchive(archiveData []byte, ext string) (*InternalTfConfig, error) {
 			// We skip nested files when parsing manifest
 			return nil
 		}
-		if strings.HasSuffix(strings.ToLower(filename), "readme.md") {
+		// remove the base path, just check for file name
+		if strings.ToLower(filepath.Base(filename)) == "readme.md" {
 			raw, err := ioutil.ReadAll(r)
 			if err != nil {
 				return fmt.Errorf("error reading the README.md file: %w", err)

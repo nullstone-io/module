@@ -13,7 +13,8 @@ import (
 func ParseFiles(files []string) (*InternalTfConfig, error) {
 	root := &InternalTfConfig{}
 	for _, file := range files {
-		if strings.HasSuffix(strings.ToLower(file), "readme.md") {
+		// remove base path, just check for file name
+		if strings.ToLower(filepath.Base(file)) == "readme.md" {
 			raw, err := ioutil.ReadFile(file)
 			if err != nil {
 				return nil, fmt.Errorf("error reading the README.md file: %w", err)
