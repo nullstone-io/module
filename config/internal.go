@@ -120,11 +120,18 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 			continue
 		}
 
-		name := ""
+		// By default, use the name specified in Terraform
+		// e.g. data "ns_connection" "network" { ... }
+		//	=> `network`
+		name := ds.Name
+		contract := "*/*/*"
 		connType := "unknown"
 		optional := false
 		if val, ok := ds.Attrs["name"].(string); ok {
 			name = val
+		}
+		if val, ok := ds.Attrs["contract"].(string); ok {
+			contract = val
 		}
 		if val, ok := ds.Attrs["type"].(string); ok {
 			connType = val
@@ -133,6 +140,7 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 			optional = val
 		}
 		manifest.Connections[name] = Connection{
+			Contract: contract,
 			Type:     connType,
 			Optional: optional,
 		}

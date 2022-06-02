@@ -31,6 +31,7 @@ func (m *Manifest) Scan(src interface{}) error {
 }
 
 type Connection struct {
+	Contract string `json:"contract"`
 	Type     string `json:"type"`
 	Optional bool   `json:"optional"`
 }

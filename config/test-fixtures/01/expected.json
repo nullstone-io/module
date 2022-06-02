@@ -4,7 +4,8 @@
   ],
   "connections": {
     "service": {
-      "type": "fargate/service",
+      "contract": "app/aws/ecs",
+      "type": "unknown",
       "optional": false
     }
   },
