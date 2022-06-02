@@ -2,6 +2,7 @@ provider "aws" {}
 data "aws_availability_zone" "this" {}
 
 data "ns_connection" "service" {
+  name     = "service"
   contract = "app/aws/ecs"
 }
 

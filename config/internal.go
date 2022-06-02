@@ -120,10 +120,7 @@ func (m *InternalTfConfig) ToManifest() Manifest {
 			continue
 		}
 
-		// By default, use the name specified in Terraform
-		// e.g. data "ns_connection" "network" { ... }
-		//	=> `network`
-		name := ds.Name
+		name := ""
 		contract := "*/*/*"
 		connType := "unknown"
 		optional := false
