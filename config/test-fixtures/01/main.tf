@@ -1,9 +1,9 @@
 provider "aws" {}
 data "aws_availability_zone" "this" {}
 
-data "ns_connection" "test" {
-  name = "service"
-  type = "fargate/service"
+data "ns_connection" "service" {
+  name     = "service"
+  contract = "app/aws/ecs"
 }
 
 variable "var1" {
