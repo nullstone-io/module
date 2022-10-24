@@ -47,7 +47,7 @@ func TestParseArchive(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			raw, err := ioutil.ReadFile(filepath.Join("test-fixtures", test.archiveFile))
 			require.NoError(t, err, "reading test fixture archive")
-			cfg, err := ParseArchive(raw, filepath.Ext(test.archiveFile))
+			cfg, err := ParseArchive(raw, ArchiveExt(test.archiveFile))
 			require.NoError(t, err)
 			wantRaw, err := ioutil.ReadFile(filepath.Join("test-fixtures", test.expectedFile))
 			require.NoError(t, err)
@@ -57,5 +57,32 @@ func TestParseArchive(t *testing.T) {
 			got := cfg.ToManifest()
 			assert.Equal(t, want, got)
 		})
+	}
+}
+
+func TestParseArchive_Readme(t *testing.T) {
+	tests := []struct {
+		name               string
+		archiveFile        string
+		expectedReadmeFile string
+	}{
+		{
+			name:               "fake-module-with-readme",
+			archiveFile:        "07/module.tgz",
+			expectedReadmeFile: "07/README.md",
+		},
+	}
+
+	for _, test := range tests {
+		raw, err := ioutil.ReadFile(filepath.Join("test-fixtures", test.archiveFile))
+		require.NoError(t, err, "reading test fixture archive")
+		cfg, err := ParseArchive(raw, ArchiveExt(test.archiveFile))
+		require.NoError(t, err)
+		wantRaw, err := ioutil.ReadFile(filepath.Join("test-fixtures", test.expectedReadmeFile))
+		require.NoError(t, err)
+		want := string(wantRaw)
+
+		got := cfg.Readme
+		assert.Equal(t, want, got)
 	}
 }
