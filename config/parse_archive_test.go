@@ -2,7 +2,7 @@ package config
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -45,11 +45,11 @@ func TestParseArchive(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			raw, err := ioutil.ReadFile(filepath.Join("test-fixtures", test.archiveFile))
+			raw, err := os.ReadFile(filepath.Join("test-fixtures", test.archiveFile))
 			require.NoError(t, err, "reading test fixture archive")
 			cfg, err := ParseArchive(raw, ArchiveExt(test.archiveFile))
 			require.NoError(t, err)
-			wantRaw, err := ioutil.ReadFile(filepath.Join("test-fixtures", test.expectedFile))
+			wantRaw, err := os.ReadFile(filepath.Join("test-fixtures", test.expectedFile))
 			require.NoError(t, err)
 			var want Manifest
 			require.NoError(t, json.Unmarshal(wantRaw, &want))
@@ -60,29 +60,36 @@ func TestParseArchive(t *testing.T) {
 	}
 }
 
-func TestParseArchive_Readme(t *testing.T) {
+func TestParseArchive_Meta(t *testing.T) {
 	tests := []struct {
 		name               string
 		archiveFile        string
 		expectedReadmeFile string
+		expectedChangelog  string
 	}{
 		{
 			name:               "fake-module-with-readme",
 			archiveFile:        "07/module.tgz",
 			expectedReadmeFile: "07/README.md",
+			expectedChangelog:  "07/CHANGELOG.md",
 		},
 	}
 
+	mustReadFileAsString := func(t *testing.T, fullname string) string {
+		wantChangelogRaw, err := os.ReadFile(fullname)
+		require.NoError(t, err)
+		return string(wantChangelogRaw)
+	}
+
 	for _, test := range tests {
-		raw, err := ioutil.ReadFile(filepath.Join("test-fixtures", test.archiveFile))
+		raw, err := os.ReadFile(filepath.Join("test-fixtures", test.archiveFile))
 		require.NoError(t, err, "reading test fixture archive")
+		wantReadme := mustReadFileAsString(t, filepath.Join("test-fixtures", test.expectedReadmeFile))
+		wantChangelog := mustReadFileAsString(t, filepath.Join("test-fixtures", test.expectedChangelog))
+
 		cfg, err := ParseArchive(raw, ArchiveExt(test.archiveFile))
 		require.NoError(t, err)
-		wantRaw, err := ioutil.ReadFile(filepath.Join("test-fixtures", test.expectedReadmeFile))
-		require.NoError(t, err)
-		want := string(wantRaw)
-
-		got := cfg.Readme
-		assert.Equal(t, want, got)
+		assert.Equal(t, wantReadme, cfg.Readme)
+		assert.Equal(t, wantChangelog, cfg.Changelog)
 	}
 }

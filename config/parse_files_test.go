@@ -42,6 +42,7 @@ func TestParseFiles(t *testing.T) {
 			tfconfig, err := ParseFiles([]string{filepath.Join("test-fixtures", test.outputFile)})
 			require.NoError(t, err, "reading test fixture file")
 			manifest := tfconfig.ToManifest()
+			assert.Equal(t, test.expectedOutputs, manifest.Outputs)
 			assert.Equal(t, test.expectedEnvVars, manifest.EnvVariables)
 		})
 	}
