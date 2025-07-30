@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 var _ ArchiveScanner = ZipScanner{}
@@ -13,7 +12,7 @@ var _ ArchiveScanner = ZipScanner{}
 type ZipScanner struct{}
 
 func (s ZipScanner) Scan(r io.Reader, fn ScannerItemFn) error {
-	raw, err := ioutil.ReadAll(r)
+	raw, err := io.ReadAll(r)
 	if err != nil {
 		return fmt.Errorf("error reading archive: %w", err)
 	}

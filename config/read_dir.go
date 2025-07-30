@@ -36,15 +36,11 @@ func ReadDir(dir string) ([]string, error) {
 // fileExt returns the Terraform configuration extension of the given
 // path, or a blank string if it is not a recognized extension.
 func fileExt(path string) string {
-	if strings.HasSuffix(strings.ToLower(path), "readme.md") {
-		return "md"
-	} else if strings.HasSuffix(path, ".tf") {
-		return ".tf"
-	} else if strings.HasSuffix(path, ".tf.json") {
-		return ".tf.json"
-	} else {
-		return ""
+	switch ext := filepath.Ext(path); ext {
+	case ".tf", ".tf.json", ".md":
+		return ext
 	}
+	return ""
 }
 
 // IsIgnoredFile returns true if the given filename (which must not have a

@@ -3,18 +3,59 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/tmccombs/hcl2json/convert"
+	"path/filepath"
 	"strings"
 )
 
 // This file contains structs to create an internal representation of terraform config
 //   before converting to nullstone manifest schema
 
+var (
+	validTfFileExts = map[string]bool{
+		".tf":      true,
+		".tf.json": true,
+	}
+)
+
 type InternalTfConfig struct {
 	Providers   map[string][]*InternalProvider `json:"provider"`
 	DataSources InternalDataSources            `json:"data"`
 	Variables   map[string][]*InternalVariable `json:"variable"`
 	Outputs     map[string][]*InternalOutput   `json:"output"`
-	Readme      string
+	Readme      string                         `json:"-"`
+	Changelog   string                         `json:"-"`
+}
+
+func (m *InternalTfConfig) ReadInFile(filename string, raw []byte) error {
+	if raw == nil {
+		return nil
+	}
+	switch strings.ToLower(filename) {
+	case "readme.md":
+		m.Readme = string(raw)
+		return nil
+	case "changelog.md":
+		m.Changelog = string(raw)
+		return nil
+	}
+
+	ext := filepath.Ext(filename)
+	if _, ok := validTfFileExts[ext]; !ok {
+		// Not a TF file, we can ignore from parsing
+		return nil
+	}
+
+	rawJson, err := convert.Bytes(raw, filename, convert.Options{})
+	if err != nil {
+		return fmt.Errorf("unable to convert hcl to json %q: %s", filename, err)
+	}
+	var curManifest InternalTfConfig
+	if err := json.Unmarshal(rawJson, &curManifest); err != nil {
+		return fmt.Errorf("unable to unmarshal raw converted json %q: %s", filename, err)
+	}
+	m.MergeIn(curManifest)
+	return nil
 }
 
 func (m *InternalTfConfig) MergeIn(other InternalTfConfig) {
