@@ -1,11 +1,12 @@
 {
   "variables": {
     "9LIVES": { "value": "no" },
-    "HAS-DASH": { "value": "no" }
-  },
-  "secret_keys": ["OK_KEY", "OK_KEY"],
-  "secret_refs": {
-    "NOT_A_SECRET": "arn:aws:secretsmanager:us-east-1:123456789012:secret:x",
-    "OK_KEY": "  "
+    "HAS-DASH": { "value": "no" },
+    "BOTH": { "value": "x", "ref": { "type": "secret", "id": "arn:aws:secretsmanager:us-east-1:123456789012:secret:x" } },
+    "EMPTY_REF_ID": { "ref": { "type": "secret", "id": "  " } },
+    "NO_REF_TYPE": { "ref": {} },
+    "BAD_REF_TYPE": { "ref": { "type": "vault" } },
+    "CM_MISSING": { "ref": { "type": "k8s_config_map", "name": "flags" } },
+    "FILE_MISSING": { "ref": { "type": "k8s_file_key", "key": "tls.crt" } }
   }
 }

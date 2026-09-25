@@ -15,58 +15,69 @@ const KindEnv = "env"
 // envVariableKeyRegex mirrors the key rule enforced by terraform-provider-ns for env variables.
 var envVariableKeyRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
-// EnvV1 is version 1 of the `env` kind.
+// EnvV1 is version 1 of the `env` kind: one entry per env variable name.
 //
-// Invariants:
-//   - Variables never contain secret values. The `ns_env_variables` data source promotes any
-//     variable that interpolates a secret into `secrets`, and this schema only carries secret key names.
-//   - SecretKeys and SecretRefs carry names/references only, never values.
+// Every variable is exactly one of:
+//   - a resolved value:   {template?, value}
+//   - a sensitive value:  {template?, sensitive: true}            (the value is never carried)
+//   - a reference:        {template?, ref: {type, ...}}           (resolved by the platform at runtime)
+//
+// A reference of type "secret" is sensitive by definition; k8s refs are not.
+// Invariant: no secret value is ever carried. The `ns_env_variables` data source promotes any
+// variable that interpolates a secret into `secrets`, and this schema only marks those as sensitive.
 type EnvV1 struct {
-	// Variables maps env var name to its resolved value and, optionally, the raw template it was resolved from.
 	Variables map[string]EnvV1Variable `json:"variables"`
-	// SecretKeys lists env var names whose values are secrets. Values are never carried.
-	SecretKeys []string `json:"secret_keys,omitempty"`
-	// SecretRefs maps env var name to a reference to an existing secret (ARN, GCP secret id, ...).
-	SecretRefs map[string]string `json:"secret_refs,omitempty"`
-	// K8s carries Kubernetes valueFrom-style references.
-	K8s *EnvV1K8sRefs `json:"k8s,omitempty"`
 }
 
 type EnvV1Variable struct {
 	// Template is the raw value before interpolation (e.g. "{{ NULLSTONE_ENV }}-db"). Optional.
 	Template string `json:"template,omitempty"`
-	// Value is the resolved value.
-	Value string `json:"value"`
+	// Value is the resolved value. Must be absent when Sensitive or Ref is set.
+	Value string `json:"value,omitempty"`
+	// Sensitive marks a secret whose value is not carried.
+	Sensitive bool `json:"sensitive,omitempty"`
+	// Ref describes where the value is resolved from at runtime.
+	Ref *EnvV1Ref `json:"ref,omitempty"`
 }
 
-type EnvV1K8sRefs struct {
-	FieldRefs         map[string]EnvV1FieldRef         `json:"field_refs,omitempty"`
-	ConfigMapRefs     map[string]EnvV1ConfigMapRef     `json:"config_map_refs,omitempty"`
-	ResourceFieldRefs map[string]EnvV1ResourceFieldRef `json:"resource_field_refs,omitempty"`
-	FileKeyRefs       map[string]EnvV1FileKeyRef       `json:"file_key_refs,omitempty"`
-}
+// Ref types
+const (
+	RefTypeSecret           = "secret"             // cloud secret store reference (ARN, GCP secret id, ...)
+	RefTypeK8sField         = "k8s_field"          // k8s fieldRef
+	RefTypeK8sConfigMap     = "k8s_config_map"     // k8s configMapKeyRef
+	RefTypeK8sResourceField = "k8s_resource_field" // k8s resourceFieldRef
+	RefTypeK8sFileKey       = "k8s_file_key"       // k8s fileKeyRef
+)
 
-type EnvV1FieldRef struct {
+// EnvV1Ref is a tagged union keyed by Type; only the fields for that type are set.
+type EnvV1Ref struct {
+	Type string `json:"type"`
+
+	// secret
+	Id string `json:"id,omitempty"`
+
+	// k8s_field
 	ApiVersion string `json:"api_version,omitempty"`
-	FieldPath  string `json:"field_path"`
-}
+	FieldPath  string `json:"field_path,omitempty"`
 
-type EnvV1ConfigMapRef struct {
-	Name     string `json:"name"`
-	Key      string `json:"key"`
+	// k8s_config_map
+	Name     string `json:"name,omitempty"`
+	Key      string `json:"key,omitempty"` // also k8s_file_key
 	Optional bool   `json:"optional,omitempty"`
-}
 
-type EnvV1ResourceFieldRef struct {
-	Resource  string `json:"resource"`
+	// k8s_resource_field
+	Resource  string `json:"resource,omitempty"`
 	Container string `json:"container,omitempty"`
 	Divisor   string `json:"divisor,omitempty"`
+
+	// k8s_file_key
+	VolumeName string `json:"volume_name,omitempty"`
+	Path       string `json:"path,omitempty"`
 }
 
-type EnvV1FileKeyRef struct {
-	VolumeName string `json:"volume_name"`
-	Path       string `json:"path"`
-	Key        string `json:"key"`
+// IsSensitive reports whether the variable's value must never be shown.
+func (v EnvV1Variable) IsSensitive() bool {
+	return v.Sensitive || (v.Ref != nil && v.Ref.Type == RefTypeSecret)
 }
 
 // ParseEnvV1 decodes and validates a raw payload.
@@ -85,94 +96,72 @@ func ParseEnvV1(raw json.RawMessage) (EnvV1, error) {
 
 // Validate enforces the invariants of the env kind.
 func (e EnvV1) Validate() error {
-	var errs []error
 	if e.Variables == nil {
-		errs = append(errs, errors.New("variables is required (use an empty object when there are none)"))
+		return errors.New("variables is required (use an empty object when there are none)")
 	}
-	for key := range e.Variables {
+	var errs []error
+	for _, key := range e.sortedKeys() {
 		if !envVariableKeyRegex.MatchString(key) {
-			errs = append(errs, fmt.Errorf("variables: %q is not a valid env variable name", key))
+			errs = append(errs, fmt.Errorf("%q is not a valid env variable name", key))
 		}
-	}
-	secretKeys := map[string]bool{}
-	for _, key := range e.SecretKeys {
-		if !envVariableKeyRegex.MatchString(key) {
-			errs = append(errs, fmt.Errorf("secret_keys: %q is not a valid env variable name", key))
-			continue
-		}
-		if secretKeys[key] {
-			errs = append(errs, fmt.Errorf("secret_keys: %q is listed more than once", key))
-		}
-		secretKeys[key] = true
-		if _, ok := e.Variables[key]; ok {
-			errs = append(errs, fmt.Errorf("%q cannot be both a variable and a secret", key))
-		}
-	}
-	for key, ref := range e.SecretRefs {
-		if !secretKeys[key] {
-			errs = append(errs, fmt.Errorf("secret_refs: %q must also be listed in secret_keys", key))
-		}
-		if strings.TrimSpace(ref) == "" {
-			errs = append(errs, fmt.Errorf("secret_refs: %q has an empty reference", key))
-		}
-	}
-	if e.K8s != nil {
-		for key := range e.K8s.FieldRefs {
-			errs = append(errs, e.checkRefKey("k8s.field_refs", key)...)
-		}
-		for key := range e.K8s.ConfigMapRefs {
-			errs = append(errs, e.checkRefKey("k8s.config_map_refs", key)...)
-		}
-		for key := range e.K8s.ResourceFieldRefs {
-			errs = append(errs, e.checkRefKey("k8s.resource_field_refs", key)...)
-		}
-		for key := range e.K8s.FileKeyRefs {
-			errs = append(errs, e.checkRefKey("k8s.file_key_refs", key)...)
+		for _, err := range e.Variables[key].validate() {
+			errs = append(errs, fmt.Errorf("%s: %w", key, err))
 		}
 	}
 	return errors.Join(errs...)
 }
 
-func (e EnvV1) checkRefKey(section, key string) []error {
+func (v EnvV1Variable) validate() []error {
 	var errs []error
-	if !envVariableKeyRegex.MatchString(key) {
-		errs = append(errs, fmt.Errorf("%s: %q is not a valid env variable name", section, key))
+	if v.Sensitive && v.Value != "" {
+		errs = append(errs, errors.New("a sensitive variable cannot carry a value"))
 	}
-	if _, ok := e.Variables[key]; ok {
-		errs = append(errs, fmt.Errorf("%s: %q cannot be both a variable and a runtime reference", section, key))
+	if v.Ref == nil {
+		return errs
+	}
+	if v.Value != "" {
+		errs = append(errs, errors.New("a variable cannot have both a value and a ref"))
+	}
+	r := v.Ref
+	require := func(field, val string) {
+		if strings.TrimSpace(val) == "" {
+			errs = append(errs, fmt.Errorf("ref type %q requires %s", r.Type, field))
+		}
+	}
+	switch r.Type {
+	case RefTypeSecret:
+		require("id", r.Id)
+	case RefTypeK8sField:
+		require("field_path", r.FieldPath)
+	case RefTypeK8sConfigMap:
+		require("name", r.Name)
+		require("key", r.Key)
+	case RefTypeK8sResourceField:
+		require("resource", r.Resource)
+	case RefTypeK8sFileKey:
+		require("volume_name", r.VolumeName)
+		require("path", r.Path)
+		require("key", r.Key)
+	case "":
+		errs = append(errs, errors.New("ref requires a type"))
+	default:
+		errs = append(errs, fmt.Errorf("unknown ref type %q", r.Type))
 	}
 	return errs
 }
 
-// Keys returns every env var name known to this record (variables, secrets, refs), sorted.
-func (e EnvV1) Keys() []string {
-	set := map[string]bool{}
+func (e EnvV1) sortedKeys() []string {
+	keys := make([]string, 0, len(e.Variables))
 	for k := range e.Variables {
-		set[k] = true
-	}
-	for _, k := range e.SecretKeys {
-		set[k] = true
-	}
-	if e.K8s != nil {
-		for k := range e.K8s.FieldRefs {
-			set[k] = true
-		}
-		for k := range e.K8s.ConfigMapRefs {
-			set[k] = true
-		}
-		for k := range e.K8s.ResourceFieldRefs {
-			set[k] = true
-		}
-		for k := range e.K8s.FileKeyRefs {
-			set[k] = true
-		}
-	}
-	keys := make([]string, 0, len(set))
-	for k := range set {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// Keys returns every env var name in this record, sorted.
+func (e EnvV1) Keys() []string {
+	return e.sortedKeys()
 }
 
 // EnvV1Schema implements Schema for (env, 1).

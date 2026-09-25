@@ -47,7 +47,7 @@ func TestValidateEnvelope(t *testing.T) {
 		{
 			name:     "known kind and version, invalid data",
 			envelope: Envelope{Kind: "env", Version: 1, Data: fixture(t, "env_v1_secret_overlap.json")},
-			wantErr:  `"DATABASE_PASSWORD" cannot be both a variable and a secret`,
+			wantErr:  "DATABASE_PASSWORD: a sensitive variable cannot carry a value",
 		},
 		{
 			name:         "unknown kind warns",
@@ -101,12 +101,21 @@ func TestParseEnvV1(t *testing.T) {
 		assert.Equal(t, "prod-db", env.Variables["DATABASE_NAME"].Value)
 		assert.Equal(t, "{{ NULLSTONE_ENV }}-db", env.Variables["DATABASE_NAME"].Template)
 		assert.Equal(t, "", env.Variables["LOG_LEVEL"].Template)
-		assert.ElementsMatch(t, []string{"DATABASE_PASSWORD", "API_TOKEN"}, env.SecretKeys)
-		require.NotNil(t, env.K8s)
-		assert.Equal(t, "status.podIP", env.K8s.FieldRefs["POD_IP"].FieldPath)
+
+		assert.True(t, env.Variables["DATABASE_PASSWORD"].IsSensitive())
+		assert.Empty(t, env.Variables["DATABASE_PASSWORD"].Value)
+		assert.True(t, env.Variables["API_TOKEN"].IsSensitive())
+		assert.True(t, env.Variables["GCP_TOKEN"].IsSensitive(), "secret refs are sensitive even without the flag")
+		assert.False(t, env.Variables["POD_IP"].IsSensitive())
+		assert.False(t, env.Variables["EMPTY"].IsSensitive())
+
+		assert.Equal(t, &EnvV1Ref{Type: RefTypeK8sField, ApiVersion: "v1", FieldPath: "status.podIP"}, env.Variables["POD_IP"].Ref)
+		assert.Equal(t, &EnvV1Ref{Type: RefTypeK8sConfigMap, Name: "flags", Key: "flags.json", Optional: true}, env.Variables["FEATURE_FLAGS"].Ref)
+		assert.Equal(t, &EnvV1Ref{Type: RefTypeK8sResourceField, Resource: "limits.cpu", Container: "app"}, env.Variables["CPU_LIMIT"].Ref)
+		assert.Equal(t, &EnvV1Ref{Type: RefTypeK8sFileKey, VolumeName: "certs", Path: "/etc/certs", Key: "tls.crt"}, env.Variables["CERT"].Ref)
 		assert.Equal(t, []string{
-			"API_TOKEN", "CERT", "CPU_LIMIT", "DATABASE_NAME", "DATABASE_PASSWORD",
-			"FEATURE_FLAGS", "LOG_LEVEL", "NULLSTONE_ENV", "POD_IP",
+			"API_TOKEN", "CERT", "CPU_LIMIT", "DATABASE_NAME", "DATABASE_PASSWORD", "EMPTY",
+			"FEATURE_FLAGS", "GCP_TOKEN", "LOG_LEVEL", "NULLSTONE_ENV", "POD_IP",
 		}, env.Keys())
 	})
 
@@ -114,15 +123,19 @@ func TestParseEnvV1(t *testing.T) {
 		_, err := ParseEnvV1(fixture(t, "env_v1_bad_keys.json"))
 		require.Error(t, err)
 		msg := err.Error()
-		assert.Contains(t, msg, `variables: "9LIVES" is not a valid env variable name`)
-		assert.Contains(t, msg, `variables: "HAS-DASH" is not a valid env variable name`)
-		assert.Contains(t, msg, `secret_keys: "OK_KEY" is listed more than once`)
-		assert.Contains(t, msg, `secret_refs: "NOT_A_SECRET" must also be listed in secret_keys`)
-		assert.Contains(t, msg, `secret_refs: "OK_KEY" has an empty reference`)
+		assert.Contains(t, msg, `"9LIVES" is not a valid env variable name`)
+		assert.Contains(t, msg, `"HAS-DASH" is not a valid env variable name`)
+		assert.Contains(t, msg, `BOTH: a variable cannot have both a value and a ref`)
+		assert.Contains(t, msg, `EMPTY_REF_ID: ref type "secret" requires id`)
+		assert.Contains(t, msg, `NO_REF_TYPE: ref requires a type`)
+		assert.Contains(t, msg, `BAD_REF_TYPE: unknown ref type "vault"`)
+		assert.Contains(t, msg, `CM_MISSING: ref type "k8s_config_map" requires key`)
+		assert.Contains(t, msg, `FILE_MISSING: ref type "k8s_file_key" requires volume_name`)
+		assert.Contains(t, msg, `FILE_MISSING: ref type "k8s_file_key" requires path`)
 	})
 
 	t.Run("variables required", func(t *testing.T) {
-		_, err := ParseEnvV1(json.RawMessage(`{"secret_keys":[]}`))
+		_, err := ParseEnvV1(json.RawMessage(`{}`))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "variables is required")
 	})
@@ -139,10 +152,10 @@ func TestParseEnvV1(t *testing.T) {
 		assert.Contains(t, err.Error(), `unknown field "secrets"`)
 	})
 
-	t.Run("k8s ref conflicts with variable", func(t *testing.T) {
-		_, err := ParseEnvV1(json.RawMessage(`{"variables":{"POD_IP":{"value":"x"}},"k8s":{"field_refs":{"POD_IP":{"field_path":"status.podIP"}}}}`))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), `k8s.field_refs: "POD_IP" cannot be both a variable and a runtime reference`)
+	t.Run("sensitive with ref is fine", func(t *testing.T) {
+		env, err := ParseEnvV1(json.RawMessage(`{"variables":{"T":{"sensitive":true,"ref":{"type":"secret","id":"x"}}}}`))
+		require.NoError(t, err)
+		assert.True(t, env.Variables["T"].IsSensitive())
 	})
 }
 
