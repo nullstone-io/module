@@ -1,0 +1,17 @@
+{
+  "variables": {
+    "NULLSTONE_ENV": { "template": "prod", "value": "prod" },
+    "DATABASE_NAME": { "template": "{{ NULLSTONE_ENV }}-db", "value": "prod-db" },
+    "LOG_LEVEL": { "value": "info" }
+  },
+  "secret_keys": ["DATABASE_PASSWORD", "API_TOKEN"],
+  "secret_refs": {
+    "API_TOKEN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:api-token"
+  },
+  "k8s": {
+    "field_refs": { "POD_IP": { "api_version": "v1", "field_path": "status.podIP" } },
+    "config_map_refs": { "FEATURE_FLAGS": { "name": "flags", "key": "flags.json", "optional": true } },
+    "resource_field_refs": { "CPU_LIMIT": { "resource": "limits.cpu", "container": "app" } },
+    "file_key_refs": { "CERT": { "volume_name": "certs", "path": "/etc/certs", "key": "tls.crt" } }
+  }
+}

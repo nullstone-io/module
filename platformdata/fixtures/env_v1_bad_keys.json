@@ -1,0 +1,11 @@
+{
+  "variables": {
+    "9LIVES": { "value": "no" },
+    "HAS-DASH": { "value": "no" }
+  },
+  "secret_keys": ["OK_KEY", "OK_KEY"],
+  "secret_refs": {
+    "NOT_A_SECRET": "arn:aws:secretsmanager:us-east-1:123456789012:secret:x",
+    "OK_KEY": "  "
+  }
+}
