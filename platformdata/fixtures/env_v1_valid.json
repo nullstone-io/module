@@ -1,0 +1,17 @@
+{
+  "platform": "gcp_gke",
+  "variables": {
+    "NULLSTONE_ENV": { "template": "prod", "value": "prod", "source": "standard" },
+    "DATABASE_NAME": { "template": "{{ NULLSTONE_ENV }}-db", "value": "prod-db", "source": "user" },
+    "PG_HOST": { "value": "db.internal", "source": "capability", "capability": "postgres" },
+    "LOG_LEVEL": { "value": "info" },
+    "EMPTY": { "value": "" },
+    "DATABASE_PASSWORD": { "template": "{{ secret(db_password) }}", "sensitive": true },
+    "API_TOKEN": { "sensitive": true, "ref": { "type": "secret", "id": "arn:aws:secretsmanager:us-east-1:123456789012:secret:api-token" } },
+    "GCP_TOKEN": { "ref": { "type": "secret", "id": "projects/p/secrets/token/versions/latest" } },
+    "POD_IP": { "ref": { "type": "k8s_field", "api_version": "v1", "field_path": "status.podIP" } },
+    "FEATURE_FLAGS": { "ref": { "type": "k8s_config_map", "name": "flags", "key": "flags.json", "optional": true } },
+    "CPU_LIMIT": { "ref": { "type": "k8s_resource_field", "resource": "limits.cpu", "container": "app" } },
+    "CERT": { "ref": { "type": "k8s_file_key", "volume_name": "certs", "path": "/etc/certs", "key": "tls.crt" } }
+  }
+}
