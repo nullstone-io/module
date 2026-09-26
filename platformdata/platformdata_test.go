@@ -115,7 +115,7 @@ func TestParseEnvV1(t *testing.T) {
 		assert.Equal(t, &EnvV1Ref{Type: RefTypeK8sFileKey, VolumeName: "certs", Path: "/etc/certs", Key: "tls.crt"}, env.Variables["CERT"].Ref)
 		assert.Equal(t, []string{
 			"API_TOKEN", "CERT", "CPU_LIMIT", "DATABASE_NAME", "DATABASE_PASSWORD", "EMPTY",
-			"FEATURE_FLAGS", "GCP_TOKEN", "LOG_LEVEL", "NULLSTONE_ENV", "POD_IP",
+			"FEATURE_FLAGS", "GCP_TOKEN", "LOG_LEVEL", "NULLSTONE_ENV", "PG_HOST", "POD_IP",
 		}, env.Keys())
 	})
 
@@ -175,4 +175,42 @@ func TestEnvV1Schema_Merge(t *testing.T) {
 
 	_, err = schema.Merge([]json.RawMessage{fixture(t, "env_v1_secret_overlap.json")})
 	require.Error(t, err)
+}
+
+func TestPlatforms(t *testing.T) {
+	names := Platforms()
+	assert.Contains(t, names, "k8s")
+	assert.Contains(t, names, "ecs")
+	k8s, ok := LookupPlatform("k8s")
+	require.True(t, ok)
+	assert.True(t, k8s.SupportsK8sRefs)
+	assert.True(t, k8s.SupportsSecretRefs)
+	ecs, ok := LookupPlatform("ecs")
+	require.True(t, ok)
+	assert.False(t, ecs.SupportsK8sRefs)
+	_, ok = LookupPlatform("mainframe")
+	assert.False(t, ok)
+	assert.Equal(t, []string{"standard", "cloud", "otel", "capability", "user"}, Sources())
+}
+
+func TestEnvV1_SourceAndPlatform(t *testing.T) {
+	env, err := ParseEnvV1(fixture(t, "env_v1_valid.json"))
+	require.NoError(t, err)
+	assert.Equal(t, "k8s", env.Platform)
+	assert.Equal(t, SourceStandard, env.Variables["NULLSTONE_ENV"].Source)
+	assert.Equal(t, SourceCapability, env.Variables["PG_HOST"].Source)
+	assert.Equal(t, "postgres", env.Variables["PG_HOST"].Capability)
+	assert.Equal(t, "", env.Variables["LOG_LEVEL"].Source, "source is optional")
+
+	_, err = ParseEnvV1(json.RawMessage(`{"platform":"mainframe","variables":{}}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `unknown platform "mainframe"`)
+
+	_, err = ParseEnvV1(json.RawMessage(`{"variables":{"A":{"value":"x","source":"magic"}}}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `A: unknown source "magic"`)
+
+	_, err = ParseEnvV1(json.RawMessage(`{"variables":{"A":{"value":"x","source":"user","capability":"pg"}}}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `A: capability is only valid when source is "capability"`)
 }

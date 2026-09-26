@@ -1,7 +1,9 @@
 {
+  "platform": "k8s",
   "variables": {
-    "NULLSTONE_ENV": { "template": "prod", "value": "prod" },
-    "DATABASE_NAME": { "template": "{{ NULLSTONE_ENV }}-db", "value": "prod-db" },
+    "NULLSTONE_ENV": { "template": "prod", "value": "prod", "source": "standard" },
+    "DATABASE_NAME": { "template": "{{ NULLSTONE_ENV }}-db", "value": "prod-db", "source": "user" },
+    "PG_HOST": { "value": "db.internal", "source": "capability", "capability": "postgres" },
     "LOG_LEVEL": { "value": "info" },
     "EMPTY": { "value": "" },
     "DATABASE_PASSWORD": { "template": "{{ secret(db_password) }}", "sensitive": true },

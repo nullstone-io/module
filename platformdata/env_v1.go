@@ -22,10 +22,13 @@ var envVariableKeyRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 //   - a sensitive value:  {template?, sensitive: true}            (the value is never carried)
 //   - a reference:        {template?, ref: {type, ...}}           (resolved by the platform at runtime)
 //
+// Each variable may also carry its source layer (standard, cloud, otel, capability, user).
 // A reference of type "secret" is sensitive by definition; k8s refs are not.
 // Invariant: no secret value is ever carried. The `ns_env_variables` data source promotes any
 // variable that interpolates a secret into `secrets`, and this schema only marks those as sensitive.
 type EnvV1 struct {
+	// Platform names the runtime (see LookupPlatform). Optional; empty for records produced by the legacy adapter.
+	Platform  string                   `json:"platform,omitempty"`
 	Variables map[string]EnvV1Variable `json:"variables"`
 }
 
@@ -38,6 +41,33 @@ type EnvV1Variable struct {
 	Sensitive bool `json:"sensitive,omitempty"`
 	// Ref describes where the value is resolved from at runtime.
 	Ref *EnvV1Ref `json:"ref,omitempty"`
+	// Source is the layer that supplied this variable (see Source* constants). Optional.
+	Source string `json:"source,omitempty"`
+	// Capability identifies the capability when Source is "capability". Optional.
+	Capability string `json:"capability,omitempty"`
+}
+
+// Source layers, lowest to highest precedence.
+const (
+	SourceStandard   = "standard"   // NULLSTONE_* built-ins
+	SourceCloud      = "cloud"      // cloud platform built-ins (GOOGLE_*, AWS_*, AZURE_*)
+	SourceOtel       = "otel"       // OTEL_* wiring
+	SourceCapability = "capability" // env/secrets emitted by a capability module
+	SourceUser       = "user"       // var.env_vars / var.secrets
+)
+
+// Sources returns the layers in precedence order (lowest first).
+func Sources() []string {
+	return []string{SourceStandard, SourceCloud, SourceOtel, SourceCapability, SourceUser}
+}
+
+func knownSource(s string) bool {
+	for _, k := range Sources() {
+		if k == s {
+			return true
+		}
+	}
+	return false
 }
 
 // Ref types
@@ -100,6 +130,11 @@ func (e EnvV1) Validate() error {
 		return errors.New("variables is required (use an empty object when there are none)")
 	}
 	var errs []error
+	if e.Platform != "" {
+		if _, ok := LookupPlatform(e.Platform); !ok {
+			errs = append(errs, fmt.Errorf("unknown platform %q", e.Platform))
+		}
+	}
 	for _, key := range e.sortedKeys() {
 		if !envVariableKeyRegex.MatchString(key) {
 			errs = append(errs, fmt.Errorf("%q is not a valid env variable name", key))
@@ -115,6 +150,12 @@ func (v EnvV1Variable) validate() []error {
 	var errs []error
 	if v.Sensitive && v.Value != "" {
 		errs = append(errs, errors.New("a sensitive variable cannot carry a value"))
+	}
+	if v.Source != "" && !knownSource(v.Source) {
+		errs = append(errs, fmt.Errorf("unknown source %q", v.Source))
+	}
+	if v.Capability != "" && v.Source != SourceCapability {
+		errs = append(errs, errors.New("capability is only valid when source is \"capability\""))
 	}
 	if v.Ref == nil {
 		return errs
