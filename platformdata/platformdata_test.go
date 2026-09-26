@@ -179,13 +179,13 @@ func TestEnvV1Schema_Merge(t *testing.T) {
 
 func TestPlatforms(t *testing.T) {
 	names := Platforms()
-	assert.Contains(t, names, "k8s")
-	assert.Contains(t, names, "ecs")
-	k8s, ok := LookupPlatform("k8s")
+	assert.Contains(t, names, "gcp_gke")
+	assert.Contains(t, names, "aws_ecs")
+	gke, ok := LookupPlatform("gcp_gke")
 	require.True(t, ok)
-	assert.True(t, k8s.SupportsK8sRefs)
-	assert.True(t, k8s.SupportsSecretRefs)
-	ecs, ok := LookupPlatform("ecs")
+	assert.True(t, gke.SupportsK8sRefs)
+	assert.True(t, gke.SupportsSecretRefs)
+	ecs, ok := LookupPlatform("aws_ecs")
 	require.True(t, ok)
 	assert.False(t, ecs.SupportsK8sRefs)
 	_, ok = LookupPlatform("mainframe")
@@ -196,7 +196,7 @@ func TestPlatforms(t *testing.T) {
 func TestEnvV1_SourceAndPlatform(t *testing.T) {
 	env, err := ParseEnvV1(fixture(t, "env_v1_valid.json"))
 	require.NoError(t, err)
-	assert.Equal(t, "k8s", env.Platform)
+	assert.Equal(t, "gcp_gke", env.Platform)
 	assert.Equal(t, SourceStandard, env.Variables["NULLSTONE_ENV"].Source)
 	assert.Equal(t, SourceCapability, env.Variables["PG_HOST"].Source)
 	assert.Equal(t, "postgres", env.Variables["PG_HOST"].Capability)

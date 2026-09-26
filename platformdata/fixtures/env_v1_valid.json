@@ -1,5 +1,5 @@
 {
-  "platform": "k8s",
+  "platform": "gcp_gke",
   "variables": {
     "NULLSTONE_ENV": { "template": "prod", "value": "prod", "source": "standard" },
     "DATABASE_NAME": { "template": "{{ NULLSTONE_ENV }}-db", "value": "prod-db", "source": "user" },
