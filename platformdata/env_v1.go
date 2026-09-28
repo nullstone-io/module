@@ -18,12 +18,14 @@ var envVariableKeyRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 // EnvV1 is version 1 of the `env` kind: one entry per env variable name.
 //
 // Every variable is exactly one of:
-//   - a resolved value:   {template?, value}
-//   - a sensitive value:  {template?, sensitive: true}            (the value is never carried)
+//   - a plain value:      {template?, value}                       (value is always serialized, even "")
+//   - a sensitive value:  {template?, sensitive: true, ref?}       (the value is never carried; ref, when
+//     present, is a "secret" or "k8s_secret_key" ref naming the managed secret)
 //   - a reference:        {template?, ref: {type, ...}}           (resolved by the platform at runtime)
 //
-// Each variable may also carry its source layer (standard, cloud, otel, capability, user).
-// A reference of type "secret" is sensitive by definition; k8s refs are not.
+// Each variable may also carry its source: the layer that supplied it (standard, cloud, otel,
+// capability, user), or "deploy" for a variable introduced by a deployment overlay.
+// A reference of type "secret" or "k8s_secret_key" is sensitive by definition; other k8s refs are not.
 // Invariant: no secret value is ever carried. The `ns_env_variables` data source promotes any
 // variable that interpolates a secret into `secrets`, and this schema only marks those as sensitive.
 type EnvV1 struct {
@@ -35,7 +37,8 @@ type EnvV1 struct {
 type EnvV1Variable struct {
 	// Template is the raw value before interpolation (e.g. "{{ NULLSTONE_ENV }}-db"). Optional.
 	Template string `json:"template,omitempty"`
-	// Value is the resolved value. Must be absent when Sensitive or Ref is set.
+	// Value is the resolved value of a plain variable. It is always serialized for a plain variable
+	// (so "" is distinguishable from "no value") and must be absent when Sensitive or Ref is set.
 	Value string `json:"value,omitempty"`
 	// Sensitive marks a secret whose value is not carried.
 	Sensitive bool `json:"sensitive,omitempty"`
@@ -54,6 +57,10 @@ const (
 	SourceOtel       = "otel"       // OTEL_* wiring
 	SourceCapability = "capability" // env/secrets emitted by a capability module
 	SourceUser       = "user"       // var.env_vars / var.secrets
+
+	// SourceDeploy is not a layer: it marks a variable that exists only because a deployment introduced it
+	// (e.g. `--env-var` on deploy). Arcana stamps it when applying a deploy overlay.
+	SourceDeploy = "deploy"
 )
 
 // Sources returns the layers in precedence order (lowest first).
@@ -62,6 +69,9 @@ func Sources() []string {
 }
 
 func knownSource(s string) bool {
+	if s == SourceDeploy {
+		return true
+	}
 	for _, k := range Sources() {
 		if k == s {
 			return true
@@ -77,6 +87,7 @@ const (
 	RefTypeK8sConfigMap     = "k8s_config_map"     // k8s configMapKeyRef
 	RefTypeK8sResourceField = "k8s_resource_field" // k8s resourceFieldRef
 	RefTypeK8sFileKey       = "k8s_file_key"       // k8s fileKeyRef
+	RefTypeK8sSecretKey     = "k8s_secret_key"     // k8s secretKeyRef: the managed secret on Kubernetes platforms
 )
 
 // EnvV1Ref is a tagged union keyed by Type; only the fields for that type are set.
@@ -90,7 +101,7 @@ type EnvV1Ref struct {
 	ApiVersion string `json:"api_version,omitempty"`
 	FieldPath  string `json:"field_path,omitempty"`
 
-	// k8s_config_map
+	// k8s_config_map, k8s_secret_key
 	Name     string `json:"name,omitempty"`
 	Key      string `json:"key,omitempty"` // also k8s_file_key
 	Optional bool   `json:"optional,omitempty"`
@@ -107,7 +118,31 @@ type EnvV1Ref struct {
 
 // IsSensitive reports whether the variable's value must never be shown.
 func (v EnvV1Variable) IsSensitive() bool {
-	return v.Sensitive || (v.Ref != nil && v.Ref.Type == RefTypeSecret)
+	return v.Sensitive || (v.Ref != nil && sensitiveRefType(v.Ref.Type))
+}
+
+// sensitiveRefType reports whether a ref type names a secret whose value must never be shown.
+func sensitiveRefType(t string) bool {
+	return t == RefTypeSecret || t == RefTypeK8sSecretKey
+}
+
+// IsPlain reports whether the variable carries a resolved value (neither sensitive nor a ref).
+func (v EnvV1Variable) IsPlain() bool {
+	return !v.Sensitive && v.Ref == nil
+}
+
+// MarshalJSON always serializes `value` for a plain variable so that an empty value is distinguishable
+// from a variable that carries no value (sensitive or ref).
+func (v EnvV1Variable) MarshalJSON() ([]byte, error) {
+	type variable EnvV1Variable // drops the method set to avoid recursion
+	if !v.IsPlain() || v.Value != "" {
+		return json.Marshal(variable(v))
+	}
+	type withValue struct {
+		variable
+		Value string `json:"value"`
+	}
+	return json.Marshal(withValue{variable: variable(v)})
 }
 
 // ParseEnvV1 decodes and validates a raw payload.
@@ -164,6 +199,9 @@ func (v EnvV1Variable) validate() []error {
 		errs = append(errs, errors.New("a variable cannot have both a value and a ref"))
 	}
 	r := v.Ref
+	if v.Sensitive && r.Type != "" && !sensitiveRefType(r.Type) {
+		errs = append(errs, fmt.Errorf("a sensitive variable can only carry a %q or %q ref, not %q", RefTypeSecret, RefTypeK8sSecretKey, r.Type))
+	}
 	require := func(field, val string) {
 		if strings.TrimSpace(val) == "" {
 			errs = append(errs, fmt.Errorf("ref type %q requires %s", r.Type, field))
@@ -182,6 +220,9 @@ func (v EnvV1Variable) validate() []error {
 	case RefTypeK8sFileKey:
 		require("volume_name", r.VolumeName)
 		require("path", r.Path)
+		require("key", r.Key)
+	case RefTypeK8sSecretKey:
+		require("name", r.Name)
 		require("key", r.Key)
 	case "":
 		errs = append(errs, errors.New("ref requires a type"))

@@ -108,14 +108,20 @@ func TestParseEnvV1(t *testing.T) {
 		assert.True(t, env.Variables["GCP_TOKEN"].IsSensitive(), "secret refs are sensitive even without the flag")
 		assert.False(t, env.Variables["POD_IP"].IsSensitive())
 		assert.False(t, env.Variables["EMPTY"].IsSensitive())
+		assert.True(t, env.Variables["PG_PASSWORD"].IsSensitive())
+		assert.Equal(t, &EnvV1Ref{Type: RefTypeK8sSecretKey, Name: "app-secrets", Key: "PG_PASSWORD"}, env.Variables["PG_PASSWORD"].Ref)
+		assert.Equal(t, SourceDeploy, env.Variables["DEPLOY_ONLY"].Source)
+		assert.True(t, env.Variables["EMPTY"].IsPlain())
+		assert.False(t, env.Variables["PG_PASSWORD"].IsPlain())
+		assert.False(t, env.Variables["POD_IP"].IsPlain())
 
 		assert.Equal(t, &EnvV1Ref{Type: RefTypeK8sField, ApiVersion: "v1", FieldPath: "status.podIP"}, env.Variables["POD_IP"].Ref)
 		assert.Equal(t, &EnvV1Ref{Type: RefTypeK8sConfigMap, Name: "flags", Key: "flags.json", Optional: true}, env.Variables["FEATURE_FLAGS"].Ref)
 		assert.Equal(t, &EnvV1Ref{Type: RefTypeK8sResourceField, Resource: "limits.cpu", Container: "app"}, env.Variables["CPU_LIMIT"].Ref)
 		assert.Equal(t, &EnvV1Ref{Type: RefTypeK8sFileKey, VolumeName: "certs", Path: "/etc/certs", Key: "tls.crt"}, env.Variables["CERT"].Ref)
 		assert.Equal(t, []string{
-			"API_TOKEN", "CERT", "CPU_LIMIT", "DATABASE_NAME", "DATABASE_PASSWORD", "EMPTY",
-			"FEATURE_FLAGS", "GCP_TOKEN", "LOG_LEVEL", "NULLSTONE_ENV", "PG_HOST", "POD_IP",
+			"API_TOKEN", "CERT", "CPU_LIMIT", "DATABASE_NAME", "DATABASE_PASSWORD", "DEPLOY_ONLY", "EMPTY",
+			"FEATURE_FLAGS", "GCP_TOKEN", "LOG_LEVEL", "NULLSTONE_ENV", "PG_HOST", "PG_PASSWORD", "POD_IP",
 		}, env.Keys())
 	})
 
@@ -132,6 +138,8 @@ func TestParseEnvV1(t *testing.T) {
 		assert.Contains(t, msg, `CM_MISSING: ref type "k8s_config_map" requires key`)
 		assert.Contains(t, msg, `FILE_MISSING: ref type "k8s_file_key" requires volume_name`)
 		assert.Contains(t, msg, `FILE_MISSING: ref type "k8s_file_key" requires path`)
+		assert.Contains(t, msg, `SECRET_KEY_MISSING: ref type "k8s_secret_key" requires key`)
+		assert.Contains(t, msg, `SENSITIVE_FIELD_REF: a sensitive variable can only carry a "secret" or "k8s_secret_key" ref, not "k8s_field"`)
 	})
 
 	t.Run("variables required", func(t *testing.T) {
@@ -156,6 +164,44 @@ func TestParseEnvV1(t *testing.T) {
 		env, err := ParseEnvV1(json.RawMessage(`{"variables":{"T":{"sensitive":true,"ref":{"type":"secret","id":"x"}}}}`))
 		require.NoError(t, err)
 		assert.True(t, env.Variables["T"].IsSensitive())
+	})
+}
+
+func TestEnvV1Variable_MarshalJSON(t *testing.T) {
+	tests := map[string]struct {
+		variable EnvV1Variable
+		want     string
+	}{
+		"plain with value":          {EnvV1Variable{Value: "x", Source: SourceUser}, `{"value":"x","source":"user"}`},
+		"plain empty keeps value":   {EnvV1Variable{Template: "{{ MISSING }}"}, `{"template":"{{ MISSING }}","value":""}`},
+		"plain zero value":          {EnvV1Variable{}, `{"value":""}`},
+		"sensitive omits value":     {EnvV1Variable{Sensitive: true, Source: SourceUser}, `{"sensitive":true,"source":"user"}`},
+		"managed secret with ref":   {EnvV1Variable{Sensitive: true, Ref: &EnvV1Ref{Type: RefTypeSecret, Id: "arn:x"}}, `{"sensitive":true,"ref":{"type":"secret","id":"arn:x"}}`},
+		"k8s secret key ref":        {EnvV1Variable{Sensitive: true, Ref: &EnvV1Ref{Type: RefTypeK8sSecretKey, Name: "s", Key: "K"}}, `{"sensitive":true,"ref":{"type":"k8s_secret_key","name":"s","key":"K"}}`},
+		"plain ref omits value":     {EnvV1Variable{Ref: &EnvV1Ref{Type: RefTypeK8sField, FieldPath: "status.podIP"}}, `{"ref":{"type":"k8s_field","field_path":"status.podIP"}}`},
+		"deploy source round trips": {EnvV1Variable{Value: "v", Source: SourceDeploy}, `{"value":"v","source":"deploy"}`},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			raw, err := json.Marshal(test.variable)
+			require.NoError(t, err)
+			assert.JSONEq(t, test.want, string(raw))
+
+			var back EnvV1Variable
+			require.NoError(t, json.Unmarshal(raw, &back))
+			assert.Equal(t, test.variable, back)
+		})
+	}
+
+	t.Run("record round trip is valid", func(t *testing.T) {
+		env, err := ParseEnvV1(fixture(t, "env_v1_valid.json"))
+		require.NoError(t, err)
+		raw, err := json.Marshal(env)
+		require.NoError(t, err)
+		again, err := ParseEnvV1(raw)
+		require.NoError(t, err)
+		assert.Equal(t, env, again)
+		assert.Contains(t, string(raw), `"EMPTY":{"value":""}`)
 	})
 }
 

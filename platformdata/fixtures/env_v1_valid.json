@@ -7,6 +7,8 @@
     "LOG_LEVEL": { "value": "info" },
     "EMPTY": { "value": "" },
     "DATABASE_PASSWORD": { "template": "{{ secret(db_password) }}", "sensitive": true },
+    "PG_PASSWORD": { "sensitive": true, "source": "capability", "capability": "postgres", "ref": { "type": "k8s_secret_key", "name": "app-secrets", "key": "PG_PASSWORD" } },
+    "DEPLOY_ONLY": { "value": "from-cli", "source": "deploy" },
     "API_TOKEN": { "sensitive": true, "ref": { "type": "secret", "id": "arn:aws:secretsmanager:us-east-1:123456789012:secret:api-token" } },
     "GCP_TOKEN": { "ref": { "type": "secret", "id": "projects/p/secrets/token/versions/latest" } },
     "POD_IP": { "ref": { "type": "k8s_field", "api_version": "v1", "field_path": "status.podIP" } },
